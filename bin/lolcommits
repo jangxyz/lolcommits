@@ -42,8 +42,11 @@ def do_noargs
   puts "Try: lolcommits --enable   (when in a git repository)"
 end
 
-HOOK_PATH = File.join ".git", "hooks", "post-commit"
+HOOK_PATH = File.join ".git", "hooks", "commit-msg"
 HOOK_DIR = File.join ".git", "hooks"
+
+ENABLE_DOC       = "#!/bin/sh\nlolcommits --capture=\"\$1\"\n"
+ENABLE_IMGUR_DOC = "#!/bin/sh\nlolcommits --capture-imgur=\"\$1\"\n"
 
 #
 # IF --ENABLE, DO ENABLE
@@ -60,13 +63,41 @@ def do_enable
   end
   
   if File.exists? HOOK_PATH
-    puts "A post-commit hook already exists for this project."
-    #TODO: disambiguate between OUR post-commit hook and something else
+    puts "A commit-msg hook already exists for this project."
+    #TODO: disambiguate between OUR commit-msg hook and something else
     exit 1
   end
   
-  doc = "#!/bin/sh\nlolcommits --capture\n"
-  File.open(HOOK_PATH, 'w') {|f| f.write(doc) }
+  File.open(HOOK_PATH, 'w') {|f| f.write(ENABLE_DOC) }
+  FileUtils.chmod 0755, HOOK_PATH
+  puts "installed lolcommmit hook as:"
+  puts "  -> #{File.expand_path(HOOK_PATH)}"
+  puts "(to remove later, you can use: lolcommits --disable)"
+  # we dont symlink, but rather install a small stub that calls the one from path
+  # that way, as gem version changes, script updates even if new file thus breaking symlink
+end
+
+#
+# IF --ENABLE-IMGUR, DO ENABLE IMGUR
+#
+def do_enable_imgur
+  if not File.directory?(".git")
+    puts "You don't appear to be in the base directory of a git project."
+    exit 1
+  end
+  
+  #its possible a hooks dir doesnt exist, so create it if so
+  if not File.directory?(HOOK_DIR)
+    Dir.mkdir(HOOK_DIR)
+  end
+  
+  if File.exists? HOOK_PATH
+    puts "A commit-msg hook already exists for this project."
+    #TODO: disambiguate between OUR commit-msg hook and something else
+    exit 1
+  end
+  
+  File.open(HOOK_PATH, 'w') {|f| f.write(ENABLE_IMGUR_DOC) }
   FileUtils.chmod 0755, HOOK_PATH
   puts "installed lolcommmit hook as:"
   puts "  -> #{File.expand_path(HOOK_PATH)}"
@@ -91,27 +122,69 @@ end
 #
 # IF --CAPTURE, DO CAPTURE
 #
-def do_capture
+def do_capture(msg_file)
   capture_delay = Choice.choices[:delay] || ENV['LOLCOMMITS_DELAY'] || 0
+
+  #msg_file = Choice.choices[:capture]
 
   if Choice.choices[:test]
     puts "*** capturing in test mode"
-    Lolcommits.capture(capture_delay, true, Choice.choices[:msg], Choice.choices[:sha])
+    Lolcommits.capture(msg_file, capture_delay, true, Choice.choices[:msg], Choice.choices[:sha])
   else
-    Lolcommits.capture(capture_delay)
+    Lolcommits.capture(msg_file, capture_delay)
+  end
+end
+
+#
+# IF --CAPTURE-IMGURL, DO CAPTURE IMGUR
+#
+def do_capture_imgur(msg_file)
+  capture_delay = Choice.choices[:delay] || ENV['LOLCOMMITS_DELAY'] || 0
+
+  #msg_file = Choice.choices[:capture_imgur]
+
+  if Choice.choices[:test]
+    puts "*** capturing in test mode"
+    Lolcommits.capture_imgur(msg_file, capture_delay, true, Choice.choices[:msg], Choice.choices[:sha])
+  else
+    Lolcommits.capture_imgur(msg_file, capture_delay)
   end
 end
 
 #
 # Command line parsing fun
 #
-Choice.options do
+module Choice
+  def parsed?
+    defined = defined? @@choices
+    @@choices = LazyHash.new({}) unless defined
 
+    return defined
+  end
+end
+
+#def Choice.parsed?
+#  if not defined? @@choices
+#    @@choices = {}
+#    puts "@@choices: undefined => #{(@@choices).inspect}"
+#    return false
+#  end
+#  @@choices || false
+#end
+
+Choice.options do
   option :enable do
     long "--enable"
     short '-e'
     action { do_enable }
     desc "install lolcommits for this repo"
+  end
+
+  option :enable_imgur do
+    long "--enable-imgur"
+    short "-E"
+    action { do_enable_imgur }
+    desc "install lolcommits for this repo, uploading to imgur.com"
   end
   
   option :disable do
@@ -122,9 +195,23 @@ Choice.options do
   end
   
   option :capture do
-    long "--capture"
+    long "--capture=MSGFILE"
     short 'c'
+    cast String
+    #action do |msg_file|
+    #  do_capture(msg_file)
+    #end
     desc "capture lolcommit based on last git commit"
+  end
+
+  option :capture_imgur do
+    long "--capture-imgur=MSGFILE"
+    short 'C'
+    cast String
+    #action do |msg_file|
+    #  do_capture_imgur(msg_file)
+    #end
+    desc "capture lolcommit based on last git commit, and upload to imgur.com"
   end
 
   option :last do
@@ -172,13 +259,18 @@ Choice.options do
   end
 end
 
-#
-# Handle actions manually since choice seems weird
-#
-if not (Choice.choices[:enable] || Choice.choices[:disable] || Choice.choices[:last] || Choice.choices[:browse])
-  if Choice.choices[:capture]
-    do_capture()
-  else
-    do_noargs()
+
+if Choice.choices[:capture] or Choice.choices[:capture_imgur]
+  msg_file = Choice.choices[:capture] || Choice.choices[:capture_imgur]
+  capture_delay = Choice.choices[:delay] || ENV['LOLCOMMITS_DELAY'] || 0
+  test_msg = Choice.choices[:msg]
+  test_sha = Choice.choices[:sha]
+  is_test = if Choice.choices[:test]
+    puts "*** capturing in test mode"
+    not not Choice.choices[:test]
   end
+
+  img_file = Lolcommits.capture(msg_file, capture_delay, is_test, test_msg, test_sha)
+  Lolcommits.upload_and_append_to_commit_msg(img_file, msg_file) if Choice.choices[:capture_imgur]
 end
+
