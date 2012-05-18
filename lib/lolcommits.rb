@@ -151,12 +151,6 @@ module Lolcommits
       wrapped.chomp!
     end
 
-    draw.annotate(canvas, 0, 0, 0, 0, commit_sha) do
-      self.gravity = NorthEastGravity
-      self.pointsize = 32
-      self.stroke_width = 2
-    end
-
     draw.annotate(canvas, 0, 0, 0, 0, word_wrap(commit_msg)) do
       self.gravity = SouthWestGravity
       self.pointsize = 48
@@ -168,8 +162,10 @@ module Lolcommits
     # Squash the images and write the files
     #
     #canvas.flatten_images.write("#{loldir}/#{commit_sha}.jpg")
-    canvas.write(File.join loldir, "#{commit_sha}.jpg")
-    FileUtils.rm(snapshot_loc)
+    #canvas.write(File.join loldir, "#{commit_sha}.jpg")
+    #FileUtils.rm(snapshot_loc)
+    file = Tempfile.new 'image'
+    canvas.write(file.path)
 
     #if in test mode, open image for inspection
     if is_test
