@@ -48,11 +48,13 @@ module Lolcommits
     return loldir, commit_sha, commit_msg
   end
 
-  def upload(loldir, commit_sha)
+  def upload(filepath)
     client = Imgur2.new 'b5ca7b73c0885e3208e1907b3d587f97' # lolcommits API key
-    image = File.open File.join(loldir, "#{commit_sha}.jpg"), 'rb'
+
+    image = File.open File.join(filepath), 'rb'
     result = client.upload image
     image.close
+
     if result['error']
       STDERR.puts "Unable to upload lolcommit: #{result['error']['message']}"
     elsif result['upload']
@@ -62,15 +64,21 @@ module Lolcommits
       else
         puts "*** Image URL: #{url}"
       end
+      url
     end
   end
 
-  def capture(capture_delay=0, is_test=false, test_msg=nil, test_sha=nil)
+  def capture(msg_file, capture_delay=0, is_test=false, test_msg=nil, test_sha=nil)
     #
     # Read the git repo information from the current working directory
     #
     if not is_test
       loldir, commit_sha, commit_msg = parse_git
+
+      # overwrite commit_msg
+      open(msg_file) do |f|
+        commit_msg = f.readline.strip
+      end
     else
       commit_msg = test_msg
       commit_sha = test_sha
@@ -156,7 +164,7 @@ module Lolcommits
       self.pointsize = 48
       self.interline_spacing = -(48 / 5) if self.respond_to?(:interline_spacing)
       self.stroke_width = 2
-    end
+    end if commit_msg
 
     #
     # Squash the images and write the files
@@ -164,12 +172,23 @@ module Lolcommits
     #canvas.flatten_images.write("#{loldir}/#{commit_sha}.jpg")
     #canvas.write(File.join loldir, "#{commit_sha}.jpg")
     #FileUtils.rm(snapshot_loc)
-    file = Tempfile.new 'image'
-    canvas.write(file.path)
+
+    filename = Time.now.strftime("%Y%m%d_%H%M")
+    filepath = File.join loldir, "#{filename}.jpg"
+    # save file
+    puts "write to #{filepath}"
+    canvas.write filepath
+    # upload file
+    url = upload filepath
+
+    # append to commit message
+    open(msg_file, 'a') do |f|
+      f.write "\nlolcommits:\n    #{url}\n"
+    end if url
 
     #if in test mode, open image for inspection
     if is_test
-      Launchy.open(File.join loldir, "#{commit_sha}.jpg")
+      Launchy.open(filepath)
     end
     
     
