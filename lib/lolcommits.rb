@@ -180,11 +180,14 @@ module Lolcommits
     return filepath
   end
 
+  def format_url(url)
+    "\nlolcommits:\n    !#{url}!\n"
+  end
+
   def upload_and_append_to_commit_msg(img_file, msg_file)
     url = upload img_file
-    puts url.inspect
     open(msg_file, 'a') do |f|
-      f.write "\nlolcommits:\n    #{url}\n"
+      f.write format_url(url)
     end if url
   end
 
