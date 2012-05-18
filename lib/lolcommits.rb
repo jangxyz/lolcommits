@@ -6,6 +6,7 @@ require "RMagick"
 require "open3"
 require "launchy"
 include Magick
+require "imgur2"
 
 module Lolcommits
   $home = ENV['HOME']
@@ -45,6 +46,23 @@ module Lolcommits
     basename.sub!(/^\./, 'dot') #no invisible directories in output, thanks!
     loldir = File.join LOLBASEDIR, basename
     return loldir, commit_sha, commit_msg
+  end
+
+  def upload(loldir, commit_sha)
+    client = Imgur2.new 'b5ca7b73c0885e3208e1907b3d587f97' # lolcommits API key
+    image = File.open File.join(loldir, "#{commit_sha}.jpg"), 'rb'
+    result = client.upload image
+    image.close
+    if result['error']
+      STDERR.puts "Unable to upload lolcommit: #{result['error']['message']}"
+    elsif result['upload']
+      url = result['upload']['links']['large_thumbnail']
+      if client.paste url
+        puts "*** Image URL: #{url} (copied to your clipboard)"
+      else
+        puts "*** Image URL: #{url}"
+      end
+    end
   end
 
   def capture(capture_delay=0, is_test=false, test_msg=nil, test_sha=nil)
