@@ -91,37 +91,6 @@ def do_disable
   end
 end
 
-#
-# IF --CAPTURE, DO CAPTURE
-#
-#def do_capture(msg_file)
-#  capture_delay = Choice.choices[:delay] || ENV['LOLCOMMITS_DELAY'] || 0
-#
-#  #msg_file = Choice.choices[:capture]
-#
-#  if Choice.choices[:test]
-#    puts "*** capturing in test mode"
-#    Lolcommits.capture(msg_file, capture_delay, true, Choice.choices[:msg], Choice.choices[:sha])
-#  else
-#    Lolcommits.capture(msg_file, capture_delay)
-#  end
-#end
-
-#
-# IF --CAPTURE-IMGUR, DO CAPTURE IMGUR
-#
-#def do_capture_imgur(msg_file)
-#  capture_delay = Choice.choices[:delay] || ENV['LOLCOMMITS_DELAY'] || 0
-#
-#  #msg_file = Choice.choices[:capture_imgur]
-#
-#  if Choice.choices[:test]
-#    puts "*** capturing in test mode"
-#    Lolcommits.capture_imgur(msg_file, capture_delay, true, Choice.choices[:msg], Choice.choices[:sha])
-#  else
-#    Lolcommits.capture_imgur(msg_file, capture_delay)
-#  end
-#end
 
 #
 # IF --CAPTURE OR --CAPTURE-IMGUR, DO CAPTURE
@@ -144,24 +113,6 @@ end
 #
 # Command line parsing fun
 #
-module Choice
-  def parsed?
-    defined = defined? @@choices
-    @@choices = LazyHash.new({}) unless defined
-
-    return defined
-  end
-end
-
-#def Choice.parsed?
-#  if not defined? @@choices
-#    @@choices = {}
-#    puts "@@choices: undefined => #{(@@choices).inspect}"
-#    return false
-#  end
-#  @@choices || false
-#end
-
 Choice.options do
   option :enable do
     long "--enable"
@@ -198,9 +149,6 @@ Choice.options do
     long "--capture=MSGFILE"
     short 'c'
     cast String
-    #action do |msg_file|
-    #  do_capture(msg_file)
-    #end
     desc "capture lolcommit based on last git commit"
   end
 
@@ -208,9 +156,6 @@ Choice.options do
     long "--capture-imgur=MSGFILE"
     short 'C'
     cast String
-    #action do |msg_file|
-    #  do_capture_imgur(msg_file)
-    #end
     desc "capture lolcommit based on last git commit, and upload to imgur.com"
   end
 
@@ -259,8 +204,7 @@ Choice.options do
   end
 end
 
-
-
+#
 if Choice.choices[:capture] or Choice.choices[:capture_imgur]
   do_capture()
 end

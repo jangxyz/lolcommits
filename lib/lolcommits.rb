@@ -194,11 +194,6 @@ module Lolcommits
   def capture_imgur(msg_file, capture_delay=0, is_test=false, test_msg=nil, test_sha=nil)
     filepath = capture(msg_file, capture_delay, is_test, test_msg, test_sha)
     upload_and_append_to_commit_msg(filepath, msg_file)
-    ## upload file and append to commit message
-    #url = upload filepath
-    #open(msg_file, 'a') do |f|
-    #  f.write "\nlolcommits:\n    #{url}\n"
-    #end if url
   end
   
 end
